@@ -1,0 +1,297 @@
+#!/bin/bash
+####################################################
+# Program Filename: matrix
+# Author: Ibrahim Alarifi
+# Date: 07/8/2019
+# Description: A program that takes matrices as input and perform the following operations: 
+#			diminsions, transpose, mean, add, and multiplication 
+# Input: txt files matrices or through stdin
+# Output: processed input matrices
+###################################################
+
+
+##################################################
+# This function is used to check the number of arguements for dims, transpose, mean
+# It should determine whether the number of args is correct, and see if it needs to take input through stdin
+#################################################
+onePar(){
+   if [ $numarg == "1" ] ; then 	# checks if it needs to take input from stdin
+      cat > "$tmp1"
+   elif [ $numarg == "2" ] ; then	# check if the file already provided
+      tmp1=$par1
+   else 				# checks if the number of args is invalid
+      echo "ERROR, Wrong Number of Args" 1>&2
+      exit 1
+   fi
+}
+
+##################################################
+# This function is used to check the number of arguements for add, multiply
+# It should determine whether the number of args is correct, and if assign the names of the provided files to $tmp
+##################################################
+twoPar(){
+   if [ $numarg == "3" ] ; then		# if number of args is valid, assign it to tmps
+      tmp1=$par1
+      tmp2=$par2
+   else 				# if number of args is not valid
+      echo "ERROR, Wrong Number of Args" 1>&2	
+      exit 1
+   fi
+}
+
+##################################################
+# This function is used to check if the provided file are there and readable
+# It is used with dims, transpose, mean
+#################################################
+lookFile1(){
+   if [ ! -r $tmp1 ]; then		# if file is unreadble or doesn't exist, return error
+	echo "ERROR, Invalid File" 1>&2
+   	exit 1
+   fi	
+}
+
+##################################################
+# This function is used to check if the provided file are there and readable
+# It is used with add, multiply
+#################################################
+lookFile2(){
+   if [ ! -r $tmp1 ]; then		# if file 1 is unreadble or DNE, return error
+      echo "ERROR, Invalid File" 1>&2
+      exit 1
+   fi
+   if [ ! -r $tmp2 ]; then		# if file 2 is unreadble or DNE, return error
+      echo "ERROR, Invalid File" 1>&2
+      exit 1
+   fi
+}
+
+##################################################
+# This function takes input as one valid matrix and print the diminsion of the matrix
+# Input: one NxM matrix
+# Output: "N M" 
+##################################################
+dims(){
+   onePar	# call onePar to check number of args
+   lookFile1	# cal lookFile1 to make sure that the file is there and readable
+   while read myLine	# loops for N number of rows
+   do
+      ((count=$count+1))	# keep track of number of rows
+	 buff=$myLine
+   done <$tmp1	# keep looping in the matrix file till the end of the file
+   rows=$count
+   count=0
+   for i in $buff	# loops for M number of cols
+   do 
+      ((count=$count+1))	# keep track of number of cols
+   done
+   cols=$count
+   count=0
+   if [ $dimIt == "1" ] ; then	# make sure not to print the rows and cols unless dims was entered from the user 
+   echo $rows" "$cols
+   fi
+}
+##################################################
+# This function takes input as one valid matrix and prints its transpose
+# Input: one NxM matrix
+# Output: one MxN matrix
+##################################################
+transpose(){
+   onePar	# call onePar to check number of args
+   lookFile1	# cal lookFile1 to make sure that the file is there and readable
+   buff=$(head -n 1 $tmp1)	# store the first line of the file $tmp1 in buff
+   count=1
+   for i in $buff	# loops for M number of cols
+   do
+      cut -f $count $tmp1 > $trash	# cut the nth cols to trash txt file
+      cat $trash | tr '\n' '\t' > $transp	# put it in one line transp txt file
+      var=$(head -n 1 $transp)		# reads the first line of the txt file to var remove tabs
+      echo $var > $transp	# overwrite it back to the txt file 
+      cat $transp >> trashtmp 	# write it in the trashtmp txt file with previous loops
+      ((count=$count+1))	# increment the nth line
+   done
+   count=0
+   cat trashtmp | tr ' ' '\t' > $transp	 # write everything back to transpose txt file with printing the proper matrix
+   cat $transp	# printing it to stdout
+   rm -f tra*	# remove all the files
+}
+
+##################################################
+# This function takes input as one valid matrix and prints its mean
+# Input: one NxM matrix
+# Output: one 1xM matrix
+##################################################
+mean(){
+   onePar	# call onePar to check number of args
+   lookFile1	 # cal lookFile1 to make sure that the file is there and readable
+   sum=0
+   buff=$(head -n 1 $tmp1)	# store the first line of the file $tmp1 in buff
+   count=1
+   jcount=0
+   for i in $buff	# loops for M number of cols
+   do
+      cut -f $count $tmp1 > $trash	# cut the nth cols to trash txt file
+      cat $trash | tr '\n' '\t' > trashtmp	 # put it in one line txt file
+      for j in $(head -n 1 trashtmp)	# loops for the number of rows cutted to trashtmp
+      do
+	((sum=$sum+$j))	# sum all the all the elements together
+	((jcount=$jcount+1))	# keeps track the number of rows (to devide later)
+      done 	# j loop end
+      ((count=$count+1))
+      ((sum=($sum + ($jcount/2)*( ($sum>0)*2-1 )) / $jcount))	# calculate the mean
+      echo $sum >> trashmean	# store the mean in trashmean txt file
+      sum=0
+      jcount=0
+   done		# i loop end
+   cat trashmean | tr '\n' '\t' > $mean	# write all the elements calculated for each row to mean
+   echo >> $mean	# add new line to mean
+   count=0	# reset counter
+   var=$(head -n 1 $mean)	# get the content of mean (elimenate unneeded tabs)
+   echo $var > trashmean	# write it back to trashmean
+   cat trashmean | tr ' ' '\t' > $mean	# write it to mean txt file with the proper allinment 
+   cat $mean	# print mean to stdout
+   rm -f tra*	# remove tra* files
+   rm -f $mean	# remove mean file
+}
+
+##################################################
+# This function takes input as two valid matrices and add them together
+# Input: two NxM matrices
+# Output: one NxM matrix
+##################################################
+add(){
+   buff1=$par1
+   twoPar	# call twoPar to check the number of args
+   lookFile2	# call lookFile2 to make sure that files are readable and exist
+   numarg=2
+   dims		# get the diminsions of the first matrix
+   local m1Dims="$rows $cols"	# store them
+   par1=$par2	# prepare to send the second matric to dims
+   dims		# get the diminsions of the second matrix
+   par1=$buff1
+   tmp1=$buff1	
+   local m2Dims="$rows $cols"	# store the values
+   
+   if [ "$m1Dims" != "$m2Dims" ] ; then	# checks if the diminsions are not valid. i.e NxM = NxM
+      echo "ERROR, Invalid Addition" 1>&2
+      exit 1
+   fi
+   count=1
+   while read myLine	# loop to the end of the file
+   do
+      tail -n+$count $tmp1 | head -1 > trash1	# get the nth matrix in m1
+      tail -n+$count $tmp2 | head -1 > trash2	# get the nth matrix in m2
+      buff1=0
+      for i in $myLine	# loops for n cols 
+      do 
+	 ((buff1=$buff1+1))	# keep track of index
+	 var1=$(cut -f $buff1 trash1)	# get the nth element in m1
+	 var2=$(cut -f $buff1 trash2)	# get the nth element in m2
+	 ((re=$var1 + $var2))	# add elements
+	 echo -n $re >> trash3	# store the result in a txt file 
+	 if [ "$buff1" -lt "$cols" ] ; then	# determine when to add a tab ( we don't need a tab for last element)
+	   echo -n -e '\t' >> trash3	# insert a tab
+	 fi 
+      done
+      cat trash3 >> add	# write the row to the result matrix
+      echo >> add	# insert a new line
+      rm -f trash3	# remove content of trash3 by deleting it
+      ((count=$count+1))
+      done<$tmp1
+      cat add	# send result matrix to stdout
+      rm -f tra*	# remove the allocated files to performe the math
+      rm -f add		# remove the result matrix
+}
+
+##################################################
+# This function takes input as two valid matrices and multiply them together
+# Input: two matrices, NxM * MxP
+# Output: one NxP matrix
+##################################################
+multiply(){ 
+   buff1=$par1
+   twoPar	# check the number of args
+   lookFile2	# check the validity of input files
+   numarg=2
+   dims		# get the dims of m1
+   local m1Dims="$rows $cols"	# store it
+   par1=$par2
+   dims		# get the dims of m2
+   par1=$buff1
+   tmp1=$buff1	# restore files naming convention
+   local m2Dims="$rows $cols"	# store it
+   if [ "$(echo $m1Dims | cut -d' ' -f 2)" != "$(echo $m2Dims | cut -d' ' -f 1)" ] ; then # if NOT m1's cols = m2's rows, them error
+      echo "ERROR, Invalid Multiplication" 1>&2
+      exit 1
+   fi
+
+   while read myLine	# loops to the end of m1 (rows)
+   do
+     buff1=0
+     count=1
+     for i in $(head -n 1 $tmp2)	# loops for number of cols in m2
+     do
+	((buff1=$buff1+1))	# index
+	cut -f $count $tmp2 > $trash	# get nth col of m2
+	cat $trash | tr '\n' ' ' > trashm2	# conver it to a row into a txt file
+	tmpvar=$(cat trashm2)	# store the row into a variable
+	echo $tmpvar > trashm2	# store it back at the txt file (to fix allignment)
+	count2=1
+	result=0
+	for j in $myLine # for each element in row of m1
+	do
+	   var2=$(cut -d' ' -f $count2 trashm2)	# get each element in m2
+	   ((re=$j*$var2))	# multiply them and store the value in $re
+	   ((result=$result+$re))	# add it to the previous values of $re
+	   ((count2=$count2+1))	# increment the counter (index of elements)
+	done
+	echo -n $result >> trash3	# write the value in a txt file
+	if [ $buff1 -lt $cols ] ; then 	# determine when to add a tab
+	   echo -n -e '\t' >> trash3
+	fi
+     ((count=$count+1))
+     done
+     echo >> trash3	# add a new line to move to the next row
+   done <$tmp1
+   cat trash3	# send the output to stdout
+   rm -f tra*	# remove the files used to do the multiplication
+}
+
+### Variables Declaration ###
+trash="trash"
+transp="transp"
+mean="mean"
+FILES="$( cd "$(dirname "$0")" ; pwd -P )"
+comnd="$1"
+par1="$2"
+par2="$3"
+tmp1="m1$$"
+tmp2="m2$$"
+numarg="$#"
+rows="0"
+cols="0"
+count="0"
+buff="0"
+dimIt="0"
+
+
+trap "rm -f m1$$ tra* add $mean" INT 0 ERR	# trap command to remove allocated files in case of unexpected events
+
+### The main function of the program ###
+if [ -z $comnd ] ; then		# if there is no command provided
+   echo "ERROR, No Atgument!" 1>&2
+   exit 1
+elif [ $comnd == "dims" ] ; then	# if the command is dims
+   dimIt="1"	# dims flag to tell the program that the user called this function specificly
+   dims	# call dims
+elif [ $comnd == "transpose" ] ; then	# if the command is transpose 
+   transpose	# call transpose
+elif [ $comnd == "mean" ] ; then	# if the command is mean
+   mean	# call mean
+elif [ $comnd == "add" ] ; then		# if command is add
+   add	# call add
+elif [ $comnd == "multiply" ] ; then	# if command is multiply
+   multiply	# call multiply
+else	# if the command enterd by the user isn't valid
+   echo "ERROR, Bad Argument!" 1>&2	# print an error
+   exit 1
+fi

@@ -1,0 +1,2 @@
+The shell uses C89 compiler:
+gcc -o smallsh smallsh.c
